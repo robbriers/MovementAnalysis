@@ -1,9 +1,9 @@
 #
-# Summary function
-# Combined code to import and run analysis
-# slightly hacked version, but getting better
-# still issue with circular mean for some reason
-# 7/1/14
+# SummariseAll function
+# Combined code to import csv files and derive summary statistics from 
+# trajectories in preparation for analysis
+# 
+# 7/1/14 4pm
 #
 # read in files and run summary function (SummTraj2)
 #
@@ -11,7 +11,7 @@ SummariseAll<-function(){
 datalist <- list()
 files <- list.files(pattern="\\.csv$")
 	for(file in files) {
-	# pull out index from file name (first 4 characters)
+	# pull out index from file name
         stem <- gsub("\\.csv$","",file)
 	# read in file
 	datalist[[stem]] <- read.csv(file)
@@ -20,13 +20,13 @@ files <- list.files(pattern="\\.csv$")
 }
 # apply SummTraj2 function to each file in datalist
 summlist<-lapply(datalist, SummTraj2)
-# convert to dataframe for return, removing row names
+# convert to dataframe for return
 summdf<-do.call(rbind, summlist)
 # create treatment group factor
 treatment<-substr(summdf$replicate, 6, 8)
-print (treatment)
 # add to summdf
 summdf<-cbind(treatment, summdf)
+# remove row names
 row.names(summdf)<-NULL
 return(summdf)
 
@@ -34,10 +34,9 @@ return(summdf)
 
 #
 # SummTraj2
-# function to convert data into ltraj object (adehabitatLT)
-# label is df name, then derives and stores summary stats from ltraj object
+# function to convert csv data into ltraj object (adehabitatLT) then derives and stores summary stats from ltraj object
 # requires adehabitatLT and circular package as CircStats has trouble with NAs
-# returns data frame containing mean and var of step lengths and abs/rel angles of turn
+# label is df name, returns data frame containing mean and var of step lengths and abs/rel angles of turn
 # uses id field from ltraj as grouping variable for deriving stats
 #
 SummTraj2<-function(test){
