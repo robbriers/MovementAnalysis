@@ -38,6 +38,7 @@ return(summdf)
 # requires adehabitatLT and circular package as CircStats has trouble with NAs
 # label is df name, returns data frame containing mean and var of step lengths and abs/rel angles of turn
 # uses id field from ltraj as grouping variable for deriving stats
+# adding extra code to extract and return observed acf values for steps and angles
 #
 SummTraj2<-function(test){
 # load dependencies
