@@ -1,11 +1,9 @@
 #
-# SummariseAll function
-# Combined code to import csv files and derive summary statistics from 
-# trajectories in preparation for analysis
-# NOT WORKING AT PRESENT - DO NOT USE
-# read in files and run summary function (SummTraj2)
+# summarisePaths function
+# Import csv files, derive summary statistics and ACF values from 
+# adehabitatLT trajectories in preparation for analysis
 #
-SummariseAll<-function(){
+summarisePaths<-function(){
 
 # load dependencies at the start
 require(adehabitatLT)
@@ -15,73 +13,101 @@ require(reshape2)
 # iterate through the list of files to be processed
 datalist <- list()
 files <- list.files(pattern="\\.csv$")
-	for(file in files) {
-	# pull out index from file name
-        stem <- gsub("\\.csv$","",file)
-	# read in file
-	datalist[[stem]] <- read.csv(file)
-	# add comment to use as label for subsequent function
-	comment(datalist[[stem]]) <- stem
+for(file in files) {
+  # pull out index from file name
+  stem <- gsub("\\.csv$","",file)
+  # read in file
+  datalist[[stem]] <- read.csv(file)
+  # add comment to use as label for subsequent function
+  comment(datalist[[stem]]) <- stem
 }
 
-# apply SummTraj2 function to each file in datalist
-summlist<-lapply(datalist, SummTraj2)
+# convert files and extract values
+trajlist<-lapply(datalist, makeTraj)
+acfdlist<-lapply(trajlist, extractACF, type="dist")
+acfalist<-lapply(trajlist, extractACF, type="abs")
+acfrlist<-lapply(trajlist, extractACF, type="rel")
+paramlist<-lapply(trajlist, extractParams)
 
-# convert each part of the list from SummTraj2 to dataframe for return
-#
-# need to finish this bit...perhaps think through how they are returned??
-#
-summdf<-do.call(rbind, summlist)
-# create treatment group factor
-treatment<-substr(summdf$replicate, 6, 8)
-# add to summdf
-summdf<-cbind(treatment, summdf)
+# convert outputlists to dataframes for return
+summ.acfd<-do.call(rbind, acfdlist)
+summ.acfa<-do.call(rbind, acfalist)
+summ.acfr<-do.call(rbind, acfrlist)
+summ.params<-do.call(rbind, paramlist)
+
+# create treatment group factor: this is specific to the current setup and can be edited
+treatment<-substr(summ.params$replicate, 6, 8)
+summ.params<-cbind(treatment, summ.params)
+treatment<-substr(summ.acfd$replicate, 6, 8)
+summ.acfd<-cbind(treatment, summ.acfd)
+summ.acfa<-cbind(treatment, summ.acfa)
+summ.acfr<-cbind(treatment, summ.acfr)
+
 # remove row names
-row.names(summdf)<-NULL
-return(summdf)
+row.names(summ.params)<-NULL
+row.names(summ.acfd)<-NULL
+row.names(summ.acfa)<-NULL
+row.names(summ.acfr)<-NULL
+
+# combine output to list for return
+return.list<-list(summ.params, summ.acfd, summ.acfa, summ.acfr)
+names(return.list)<-c("params", "acf.d", "acf.a", "acf.r")
+
+return(return.list)
 
 }
 
 #
-# SummTraj2
-# function to convert csv data into ltraj object (adehabitatLT) then derives and stores summary stats from ltraj object
-# requires adehabitatLT and circular package as CircStats has trouble with NAs
-# label is df name, returns data frame containing mean and var of step lengths and abs/rel angles of turn
-# uses id field from ltraj as grouping variable for deriving stats
-# adding in code for extracting acf values and returning them in long format
-# adds in additional dependency to reshape2
+# Function to convert imported csv file to ltraj object
 #
-SummTraj2<-function(test){
-
-# set up label
-label<-comment(test)
+makeTraj<-function(df){
 
 # add column names
-names(test)[1] <- "X"
-names(test)[2] <- "Y"
+names(df)[1] <- "X"
+names(df)[2] <- "Y"
 
-# generate time sequence to use in ltraj:  this is specific to the current application and can be altered to suit
+# generate time sequence to use in ltraj:  this is specific to the current setup and can be altered to suit
 # or use existing timestamps within the csv file if they are present
-times<-seq.POSIXt(ISOdate(2013,7,1), by="2 sec", length.out=length(test$X))
+times<-seq.POSIXt(ISOdate(2013,7,1), by="2 sec", length.out=length(df$X))
 
-# convert to ltraj and to df
-traj1<- as.ltraj(xy = test[,c("X","Y")], date = times, id = label, typeII=TRUE, slsp = "missing")
-frame<-ld(traj1)
+# convert to ltraj
+traj<- as.ltraj(xy = df[,c("X","Y")], date = times, id = comment(df), typeII=TRUE, slsp = "missing")
 
-# extract acf values for steps and angles
-acfd<-acfdist.ltraj(traj1, lag=10, plot=FALSE)
-acfr<-acfang.ltraj(traj1, which="relative", lag=10, plot=FALSE)
-acfa<-acfang.ltraj(traj1, which="absolute", lag=10, plot=FALSE)
+# pass on comment for use later
+comment(traj)<-comment(df)
+return(traj)
+}
 
-# convert each to df, extract observed acf values and add replicate index
-obs.acfd<-(cbind(label, as.data.frame(acfd)[1, ]))
-obs.acfr<-(cbind(label, as.data.frame(acfr)[1, ]))
-obs.acfa<-(cbind(label, as.data.frame(acfa)[1, ]))
+#
+# Function to extract observed ACF values and return
+#
+extractACF<-function(traj, type){
+
+# extract appropriate acf value, depending on type
+if (type =="dist") {acf<-acfdist.ltraj(traj, lag=10, plot=FALSE)}
+if (type =="abs") {acf<-acfang.ltraj(traj, which="absolute", lag=10, plot=FALSE)}
+if (type =="rel") {acf<-acfang.ltraj(traj, which="relative", lag=10, plot=FALSE)}
+
+# convert to df, extract observed acf values and add replicate index
+obs.acf<-(cbind(comment(traj), as.data.frame(acf)[1, ]))
 
 # convert to long format for analysis using melt from reshape2
-obs.acfd<-melt(obs.acfd, id=names(obs.acfd[1]))
-obs.acfr<-melt(obs.acfr, id=names(obs.acfr[1]))
-obs.acfa<-melt(obs.acfa, id=names(obs.acfa[1]))
+obs.acf<-melt(obs.acf, id=names(obs.acf[1]))
+
+# add column headings
+names(obs.acf)<-c("replicate","lag", "acf.val")
+
+return(obs.acf)
+}
+
+
+#
+# Function to extract summary parameters from trajectory
+#
+extractParams<-function(traj){
+
+# convert ltraj to dataframe
+frame<-ld(traj)
 
 # derive mean and var of step lengths from data using aggregate
 meanstep<-aggregate(frame$dist, list(frame$id), mean, na.rm=T)
@@ -93,16 +119,9 @@ meanrel<-aggregate(circular(frame$rel.angle), list(frame$id), mean.circular, na.
 varabs<-aggregate(circular(frame$abs.angle), list(frame$id), var.circular, na.rm=T)
 varrel<-aggregate(circular(frame$rel.angle), list(frame$id), var.circular, na.rm=T)
 
-# concatenate results to new frame @@ can simplfy here
-sum.params<-data.frame()
-sum.params<-meanstep
-sum.params<-cbind(sum.params, varstep[2], meanabs[2], varabs[2], meanrel[2], varrel[2])
-names(sum.params)<-c("replicate","step.mean", "step.var", "abs.mean","abs.var","rel.mean","rel.var")
+# concatenate results to new frame
+summ<-cbind(meanstep, varstep[2], meanabs[2], varabs[2], meanrel[2], varrel[2])
+names(summ)<-c("replicate","step.mean", "step.var", "abs.mean","abs.var","rel.mean","rel.var")
 
-# combine summary parameters with acf values in a list
-return.list<-list(sum.params, obs.acfd, obs.acfr, obs.acfa)
-names(return.list)<-c("sum.params", "obsacf.d", "obsacf.r", "obsacf.a")
-
-return(return.list)
-
+return(summ)
 }
