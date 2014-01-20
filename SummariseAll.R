@@ -58,16 +58,7 @@ return(return.list)
 }
 
 #
-<<<<<<< HEAD
-# SummTraj2
-# function to convert csv data into ltraj object (adehabitatLT) then derives and stores summary stats from ltraj object
-# requires adehabitatLT and circular package as CircStats has trouble with NAs
-# label is df name, returns data frame containing mean and var of step lengths and abs/rel angles of turn
-# uses id field from ltraj as grouping variable for deriving stats
-# adding extra code to extract and return observed acf values for steps and angles
-=======
 # Function to convert imported csv file to ltraj object
->>>>>>> origin/AddACF
 #
 makeTraj<-function(df){
 
@@ -109,7 +100,6 @@ names(obs.acf)<-c("replicate","lag", "acf.val")
 return(obs.acf)
 }
 
-
 #
 # Function to extract summary parameters from trajectory
 #
@@ -133,9 +123,4 @@ summ<-cbind(meanstep, varstep[2], meanabs[2], varabs[2], meanrel[2], varrel[2])
 names(summ)<-c("replicate","step.mean", "step.var", "abs.mean","abs.var","rel.mean","rel.var")
 
 return(summ)
-<<<<<<< HEAD
-
 }
-=======
-}
->>>>>>> origin/AddACF
