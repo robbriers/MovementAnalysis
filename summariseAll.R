@@ -112,6 +112,9 @@ frame<-ld(traj)
 meanstep<-aggregate(frame$dist, list(frame$id), mean, na.rm=T)
 varstep<-aggregate(frame$dist, list(frame$id), var, na.rm=T)
 
+# get R2N value from final value of column
+r2n<-frame$R2n[length(frame$R2n)]
+
 # derive mean and variance of angles (abs and rel), coercing to circular class on the fly
 meanabs<-aggregate(circular(frame$abs.angle), list(frame$id), mean.circular, na.rm=T)
 meanrel<-aggregate(circular(frame$rel.angle), list(frame$id), mean.circular, na.rm=T)
@@ -119,8 +122,8 @@ varabs<-aggregate(circular(frame$abs.angle), list(frame$id), var.circular, na.rm
 varrel<-aggregate(circular(frame$rel.angle), list(frame$id), var.circular, na.rm=T)
 
 # concatenate results to new frame
-summ<-cbind(meanstep, varstep[2], meanabs[2], varabs[2], meanrel[2], varrel[2])
-names(summ)<-c("replicate","step.mean", "step.var", "abs.mean","abs.var","rel.mean","rel.var")
+summ<-cbind(meanstep, varstep[2], meanabs[2], varabs[2], meanrel[2], varrel[2], r2n)
+names(summ)<-c("replicate","step.mean", "step.var", "abs.mean","abs.var","rel.mean","rel.var", "R2N")
 
 return(summ)
 }
